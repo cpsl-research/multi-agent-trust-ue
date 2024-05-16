@@ -1,15 +1,12 @@
-import os
-from tqdm import tqdm
 import cProfile
+import os
 
 from avapi.carla import CarlaScenesManager
-from avstack.modules.perception.object3d import MMDetObjectDetector3D
-from avstack.modules.tracking.tracker3d import BasicBoxTracker3D
-from avstack.modules.tracking.stonesoup import StoneSoupKalmanTracker3DBox
-from avstack.modules.tracking.multisensor import MeasurementBasedMultiTracker
-
 from avstack.datastructs import DataContainer
-
+from avstack.modules.perception.object3d import MMDetObjectDetector3D
+from avstack.modules.tracking.multisensor import MeasurementBasedMultiTracker
+from avstack.modules.tracking.tracker3d import BasicBoxTracker3D
+from tqdm import tqdm
 
 
 def main():
@@ -21,7 +18,6 @@ def main():
 
     print(CSM.scenes)
     print(f"{len(CDM)} frames")
-
 
     # init models
     # agents = list(range(len(CDM.get_agents(frame=1))))
@@ -35,7 +31,9 @@ def main():
             len(agents), len(agents) - n_static, n_static
         )
     )
-    percep_veh = MMDetObjectDetector3D(model="pointpillars", dataset="carla-vehicle", gpu=0)
+    percep_veh = MMDetObjectDetector3D(
+        model="pointpillars", dataset="carla-vehicle", gpu=0
+    )
     percep_inf = MMDetObjectDetector3D(
         model="pointpillars", dataset="carla-infrastructure", gpu=0
     )
@@ -87,7 +85,9 @@ def main():
             pcs_all[agent].append(pc)
             objs = CDM.get_objects(frame=frame, sensor=lidar_sensor, agent=agent)
             calib = CDM.get_calibration(frame=frame, sensor=lidar_sensor, agent=agent)
-            fovs[agent] = pc.concave_hull_bev(concavity=1, length_threshold=4, in_global=False)
+            fovs[agent] = pc.concave_hull_bev(
+                concavity=1, length_threshold=4, in_global=False
+            )
             # fovs[agent] = Sphere(radius=100)
             platforms[agent] = calib.reference
             platforms_all[agent].append(calib.reference)
@@ -113,7 +113,9 @@ def main():
                 )
                 if not isinstance(tracks[agent], DataContainer):
                     raise
-                tracks_all[agent].append([track.box3d.copy() for track in tracks[agent]])
+                tracks_all[agent].append(
+                    [track.box3d.copy() for track in tracks[agent]]
+                )
 
         ###############################################
         # COLLABORATIVE PERCEPTION/TRACKING
@@ -128,14 +130,16 @@ def main():
         if found_data:
             if run_centralized_tracking:
                 # Run trust model
-                
+
                 # Run tracking
                 tracks["central"] = trackers["central"](
                     detections=dets,
                     fovs=fovs,
                     platforms=platforms,
                 )
-                tracks_all["central"].append([track.box3d.copy() for track in tracks["central"]])
+                tracks_all["central"].append(
+                    [track.box3d.copy() for track in tracks["central"]]
+                )
 
 
 if __name__ == "__main__":
