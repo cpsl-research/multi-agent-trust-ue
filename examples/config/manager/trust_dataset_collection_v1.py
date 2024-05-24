@@ -162,8 +162,19 @@ npc_manager = {
             "npc_type": "vehicle.ford.ambulance",
             "reference_to_spawn": {
                 "type": "CarlaReferenceFrame",
-                "location": [25, -15, 0],
+                "location": [25, -22, 0],
                 "rotation": [0, 0, 90],
+                "camera": False,
+            },
+        },
+        {
+            "type": "CarlaNpc",
+            "spawn": 1,
+            "npc_type": "vehicle.tesla.cybertruck",
+            "reference_to_spawn": {
+                "type": "CarlaReferenceFrame",
+                "location": [18, 45, 0],
+                "rotation": [0, 0, -90],
                 "camera": False,
             },
         },
