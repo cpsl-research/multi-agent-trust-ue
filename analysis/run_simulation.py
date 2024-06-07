@@ -27,8 +27,8 @@ def main():
     replayer = DatasetReplayer(scene_index=0)
 
     # run through simulator
-    for data in tqdm(replayer):
-        simulator(data)
+    for data_input in tqdm(replayer):
+        data_output = simulator(data_input)
 
 
 if __name__ == "__main__":
