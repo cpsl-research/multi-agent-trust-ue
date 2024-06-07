@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Any
 
 import numpy as np
@@ -51,14 +52,27 @@ class DatasetReplayer:
                     # raise the original error instead
                     raise original_error
 
-    def __call__(self) -> dict:
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            data = self.step()
+        except IndexError:
+            raise StopIteration
+        return data
+
+    def __len__(self):
+        return len(self.frames)
+
+    def step(self) -> dict:
         """Gets the next batch of data for each agent"""
 
         frame = self.frames[self.index]
         timestamp = self.get_timestamp(
             frame=frame, sensor=self._default_sensor, agent=self._default_agent
         )
-        timestamp_dt = None
+        timestamp_dt = timedelta(seconds=timestamp)
         objects = self.get_objects_global(
             frame=frame, include_agents=True, ignore_static_agents=True
         )
