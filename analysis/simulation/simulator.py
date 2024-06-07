@@ -77,7 +77,10 @@ class TrustSimulation:
             agent_platforms=agent_poses,
         )
 
-        # log the results
+        # save the results in stonesoup format
+        
+
+        # plot the results
         agent_positions = {ID: pose.x for ID, pose in agent_poses.items()}
         plotting.plot_agents_detections(
             agent_positions,
