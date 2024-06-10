@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING
 
 
@@ -16,12 +17,32 @@ class Agent:
         fov_estimator: ConfigDict,
         perception: ConfigDict,
         tracking: ConfigDict,
+        log_dir: str,
     ):
         self.ID = ID
         self.t_start = t_start
+
+        # add logging hooks
+        out_folder = os.path.join(log_dir, f"agent-{ID}", "{}")
+        perception["post_hooks"] = [
+            {
+                "type": "DetectionsLogger",
+                "output_folder": out_folder.format("detections"),
+            }
+        ]
+        tracking["post_hooks"] = [
+            {
+                "type": "StoneSoupTracksLogger",
+                "output_folder": out_folder.format("tracks"),
+            }
+        ]
+
+        # build models
         self.fov_estimator = MODELS.build(fov_estimator)
         self.perception = MODELS.build(perception)
         self.tracking = MODELS.build(tracking, default_args={"t0": t_start})
+
+        # presets
         self.reference = None
         self.fov = None
         self.detections = []
@@ -73,8 +94,9 @@ class MobileAgent(Agent):
         tracking: ConfigDict = {
             "type": "StoneSoupKalmanTracker3DBox",
         },
+        log_dir: str = "last_run",
     ):
-        super().__init__(ID, t_start, fov_estimator, perception, tracking)
+        super().__init__(ID, t_start, fov_estimator, perception, tracking, log_dir)
 
 
 @AGENTS.register_module()
@@ -94,8 +116,9 @@ class StaticAgent(Agent):
         tracking: ConfigDict = {
             "type": "StoneSoupKalmanTracker3DBox",
         },
+        log_dir: str = "last_run",
     ):
-        super().__init__(ID, t_start, fov_estimator, perception, tracking)
+        super().__init__(ID, t_start, fov_estimator, perception, tracking, log_dir)
 
 
 @AGENTS.register_module()
@@ -107,7 +130,18 @@ class CommandCenter:
             "type": "MeasurementBasedMultiTracker",
             "tracker": {"type": "StoneSoupKalmanTracker3DBox"},
         },
+        log_dir: str = "last_run",
     ):
+        # add logging hooks
+        out_folder = os.path.join(log_dir, f"command-center", "{}")
+        tracking["post_hooks"] = [
+            {
+                "type": "StoneSoupTracksLogger",
+                "output_folder": out_folder.format("tracks"),
+            }
+        ]
+
+        # build models
         tracking["tracker"]["t0"] = t_start
         self.tracking = MODELS.build(tracking)
 

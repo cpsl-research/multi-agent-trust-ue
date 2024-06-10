@@ -34,6 +34,15 @@ class DatasetReplayer:
         # dynamic things that change
         self.index = 0
 
+        # log metadata
+        self.metadata = {
+            "scene_manager": scene_manager,
+            "scene_index": scene_index,
+            "n_frames_burnin": n_frames_burnin,
+            "n_frames_trim": n_frames_trim,
+            "n_frames_max": n_frames_max,
+        }
+
     def __getattribute__(self, __name: str) -> Any:
         try:
             # this tries to get the attribute from self
@@ -65,6 +74,10 @@ class DatasetReplayer:
     def __len__(self):
         return len(self.frames)
 
+    def __call__(self, load_perception: bool = True):
+        self.load_perception = load_perception
+        return self
+
     def step(self) -> dict:
         """Gets the next batch of data for each agent"""
 
@@ -85,10 +98,14 @@ class DatasetReplayer:
                 "sensor_data": {
                     "image": self.get_image(
                         frame=frame, sensor=self._default_camera, agent=agent
-                    ),
+                    )
+                    if self.load_perception
+                    else None,
                     "lidar": self.get_lidar(
                         frame=frame, sensor=self._default_lidar, agent=agent
-                    ),
+                    )
+                    if self.load_perception
+                    else None,
                 },
                 "objects": {
                     "image": self.get_objects(

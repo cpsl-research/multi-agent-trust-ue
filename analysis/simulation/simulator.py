@@ -3,12 +3,8 @@ import shutil
 from datetime import datetime
 from typing import List
 
-from matplotlib.pyplot import close as close_figs
-
 from avstack.config import AGENTS, ConfigDict
 from avstack.geometry import GlobalOrigin3D
-
-from mate import plotting
 from mate.config import MATE
 
 
@@ -21,14 +17,14 @@ class TrustSimulation:
         trust_estimator: ConfigDict,
         log_dir: str = "last_run",
     ):
-        self.t0 = t0
-        self.agents = {agent["ID"]: AGENTS.build(agent) for agent in agents}
-        self.command_center = AGENTS.build(command_center)
-        self.trust_estimator = MATE.build(trust_estimator)
         self.log_dir = log_dir
         if os.path.exists(self.log_dir):
             shutil.rmtree(self.log_dir)
         os.makedirs(self.log_dir, exist_ok=True)
+        self.t0 = t0
+        self.agents = {agent["ID"]: AGENTS.build(agent) for agent in agents}
+        self.command_center = AGENTS.build(command_center)
+        self.trust_estimator = MATE.build(trust_estimator)
 
     def __call__(self, data):
         """Step the simulation forward in time"""
@@ -58,7 +54,7 @@ class TrustSimulation:
 
         # predict command center tracks
         timestamp = self.t0 + data["timestamp_dt"]
-        tracks_cc = self.command_center.predict_tracks(timestamp=timestamp)
+        cc_tracks_global = self.command_center.predict_tracks(timestamp=timestamp)
 
         # run trust estimation
         self.trust_estimator(
@@ -67,7 +63,7 @@ class TrustSimulation:
             agent_fovs=agent_fovs_global,
             agent_dets=agent_dets_global,
             agent_tracks=agent_tracks_global,
-            cc_tracks=tracks_cc,
+            cc_tracks=cc_tracks_global,
         )
 
         # run command center pipelines in global
@@ -78,39 +74,12 @@ class TrustSimulation:
         )
 
         # save the results in stonesoup format
-        
-
-        # plot the results
         agent_positions = {ID: pose.x for ID, pose in agent_poses.items()}
-        plotting.plot_agents_detections(
-            agent_positions,
-            agent_fovs_global,
-            agent_dets_global,
-            show=False,
-            save=True,
-            fig_dir=os.path.join(self.log_dir, "detections"),
-            suffix=f"-frame-{data['frame']}",
-            extension="png",
-        )
-        plotting.plot_agents_tracks(
-            agent_positions,
-            agent_fovs_global,
-            tracks_cc,
-            show=False,
-            save=True,
-            fig_dir=os.path.join(self.log_dir, "tracks"),
-            suffix=f"-frame-{data['frame']}",
-            extension="png",
-        )
-        plotting.plot_trust(
-            tracks_cc,
-            self.trust_estimator.track_trust,
-            self.trust_estimator.agent_trust,
-            show=False,
-            save=True,
-            fig_dir=os.path.join(self.log_dir, "trust"),
-            use_subfolders=True,
-            suffix=f"-frame-{data['frame']}",
-            extension="png",
-        )
-        close_figs()
+        data_output = {
+            "agent_positions": agent_positions,
+            "agent_fovs_global": agent_fovs_global,
+            "agent_dets_global": agent_dets_global,
+            "cc_tracks_global": cc_tracks_global,
+        }
+
+        return data_output
