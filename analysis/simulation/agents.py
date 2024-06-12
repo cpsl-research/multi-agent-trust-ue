@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from avstack.config import ConfigDict
 
-from avstack.config import AGENTS, MODELS, ConfigDict
+
+from avstack.config import AGENTS, MODELS
 from avstack.geometry import GlobalOrigin3D
 from avstack.utils.logging import StoneSoupTracksLogger
 
@@ -15,10 +17,13 @@ class Agent:
         self,
         ID: int,
         t_start: "datetime",
-        fov_estimator: ConfigDict,
-        perception: ConfigDict,
-        tracking: ConfigDict,
+        localization: "ConfigDict",
+        fov_estimator: "ConfigDict",
+        perception: "ConfigDict",
+        tracking: "ConfigDict",
         log_dir: str,
+        log_fov: bool = True,
+        log_local: bool = True,
         log_percep: bool = True,
         log_track: bool = False,
     ):
@@ -28,6 +33,20 @@ class Agent:
 
         # add logging hooks
         out_folder = os.path.join(log_dir, f"agent-{ID}", "{}")
+        if log_local:
+            localization["post_hooks"] = [
+                {
+                    "type": "AgentPoseLogger",
+                    "output_folder": out_folder.format("pose"),
+                }
+            ]
+        if log_fov:
+            fov_estimator["post_hooks"] = [
+                {
+                    "type": "FieldOfViewLogger",
+                    "output_folder": out_folder.format("fov"),
+                }
+            ]
         if log_percep:
             perception["post_hooks"] = [
                 {
@@ -45,6 +64,7 @@ class Agent:
 
         # build models
         self.fov_estimator = MODELS.build(fov_estimator)
+        self.localization = MODELS.build(localization, default_args={"t_init": t_start})
         self.perception = MODELS.build(perception)
         self.tracking = MODELS.build(tracking, default_args={"t0": t_start})
 
@@ -54,8 +74,9 @@ class Agent:
         self.detections = []
         self.tracks = []
 
-    def pipeline(self, sensor_data, platform, calibration):
+    def pipeline(self, timestamp, sensor_data, agent_state, platform, calibration):
         self.reference = platform
+        self.pose = self.localization(timestamp, agent_state)
         self.fov = self.fov_estimator(sensor_data, in_global=False)
         self.detections = self.perception(sensor_data)
         self.tracks = self.tracking(
@@ -94,20 +115,23 @@ class MobileAgent(Agent):
         self,
         ID: int,
         t_start: "datetime",
-        fov_estimator: ConfigDict = {"type": "ConcaveHullLidarFOVEstimator"},
-        perception: ConfigDict = {
+        localization: "ConfigDict" = {"type": "GroundTruthLocalizer"},
+        fov_estimator: "ConfigDict" = {"type": "ConcaveHullLidarFOVEstimator"},
+        perception: "ConfigDict" = {
             "type": "MMDetObjectDetector3D",
             "model": "pointpillars",
             "dataset": "carla-vehicle",
             "gpu": 0,
             "thresh_duplicate": 1.0,
         },
-        tracking: ConfigDict = {
+        tracking: "ConfigDict" = {
             "type": "StoneSoupKalmanTracker3DBox",
         },
         log_dir: str = "last_run",
     ):
-        super().__init__(ID, t_start, fov_estimator, perception, tracking, log_dir)
+        super().__init__(
+            ID, t_start, localization, fov_estimator, perception, tracking, log_dir
+        )
 
 
 @AGENTS.register_module()
@@ -116,20 +140,23 @@ class StaticAgent(Agent):
         self,
         ID: int,
         t_start: "datetime",
-        fov_estimator: ConfigDict = {"type": "ConcaveHullLidarFOVEstimator"},
-        perception: ConfigDict = {
+        localization: "ConfigDict" = {"type": "GroundTruthLocalizer"},
+        fov_estimator: "ConfigDict" = {"type": "ConcaveHullLidarFOVEstimator"},
+        perception: "ConfigDict" = {
             "type": "MMDetObjectDetector3D",
             "model": "pointpillars",
             "dataset": "carla-infrastructure",
             "gpu": 0,
             "thresh_duplicate": 1.0,
         },
-        tracking: ConfigDict = {
+        tracking: "ConfigDict" = {
             "type": "StoneSoupKalmanTracker3DBox",
         },
         log_dir: str = "last_run",
     ):
-        super().__init__(ID, t_start, fov_estimator, perception, tracking, log_dir)
+        super().__init__(
+            ID, t_start, localization, fov_estimator, perception, tracking, log_dir
+        )
 
 
 @AGENTS.register_module()
@@ -137,7 +164,7 @@ class CommandCenter:
     def __init__(
         self,
         t_start: "datetime",
-        tracking: ConfigDict = {
+        tracking: "ConfigDict" = {
             "type": "MeasurementBasedMultiTracker",
             "tracker": {"type": "StoneSoupKalmanTracker3DBox"},
         },

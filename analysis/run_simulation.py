@@ -55,7 +55,7 @@ def main(args):
         for agent in [simulator.command_center, *simulator.agents.values()]:
             agent.shutdown()
         print("done.")
- 
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()

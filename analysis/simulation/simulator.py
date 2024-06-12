@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import List
 
 from avstack.config import AGENTS, ConfigDict
-from avstack.geometry import GlobalOrigin3D
 from mate.config import MATE
 
 
@@ -30,24 +29,30 @@ class TrustSimulation:
         """Step the simulation forward in time"""
 
         # run local agent pipelines
-        agent_poses = {}
+        agent_platforms = {}
         agent_fovs_global = {}
         agent_dets_global = {}
         agent_tracks_global = {}
         for agent_ID in self.agents:
             # get sensor data
             # HACK: fix that it is lidar data replayed
+            timestamp = data["agent_data"][agent_ID]["timestamp"]
+            agent_state = data["agent_data"][agent_ID]["pose"]
             sensor_data = data["agent_data"][agent_ID]["sensor_data"]["lidar"]
             calibration = sensor_data.calibration
             platform = calibration.reference
 
             # run agent pipeline
             self.agents[agent_ID].pipeline(
-                sensor_data=sensor_data, platform=platform, calibration=calibration
+                timestamp=timestamp,
+                agent_state=agent_state,
+                sensor_data=sensor_data,
+                platform=platform,
+                calibration=calibration,
             )
 
             # store necessary data
-            agent_poses[agent_ID] = platform.integrate(start_at=GlobalOrigin3D)
+            agent_platforms[agent_ID] = self.agents[agent_ID].pose.as_reference()
             agent_fovs_global[agent_ID] = self.agents[agent_ID].get_fov_global()
             agent_dets_global[agent_ID] = self.agents[agent_ID].get_detections_global()
             agent_tracks_global[agent_ID] = self.agents[agent_ID].get_tracks_global()
@@ -59,7 +64,7 @@ class TrustSimulation:
         # run trust estimation
         self.trust_estimator(
             frame=data["frame"],
-            agent_poses=agent_poses,
+            agent_poses=agent_platforms,
             agent_fovs=agent_fovs_global,
             agent_dets=agent_dets_global,
             agent_tracks=agent_tracks_global,
@@ -70,11 +75,11 @@ class TrustSimulation:
         self.command_center.pipeline(
             agent_dets=agent_dets_global,
             agent_fovs=agent_fovs_global,
-            agent_platforms=agent_poses,
+            agent_platforms=agent_platforms,
         )
 
         # save the results in stonesoup format
-        agent_positions = {ID: pose.x for ID, pose in agent_poses.items()}
+        agent_positions = {ID: pose.x for ID, pose in agent_platforms.items()}
         data_output = {
             "agent_positions": agent_positions,
             "agent_fovs_global": agent_fovs_global,
