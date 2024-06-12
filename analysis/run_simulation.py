@@ -46,11 +46,16 @@ def main(args):
     finally:
         # save metadata
         metadata = {"t_start": t_start.timestamp(), "replayer": replayer.metadata}
+        print("Saving metadata...")
         with open(os.path.join(args.log_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
 
-        # save all results
-
+        # run the shutdown routine for the agents
+        print("Shutting down agents...")
+        for agent in [simulator.command_center, *simulator.agents.values()]:
+            agent.shutdown()
+        print("done.")
+ 
 
 if __name__ == "__main__":
     parser = ArgumentParser()

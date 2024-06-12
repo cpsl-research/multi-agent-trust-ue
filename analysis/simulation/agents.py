@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 from avstack.config import AGENTS, MODELS, ConfigDict
 from avstack.geometry import GlobalOrigin3D
+from avstack.utils.logging import StoneSoupTracksLogger
 
 
 class Agent:
@@ -18,24 +19,29 @@ class Agent:
         perception: ConfigDict,
         tracking: ConfigDict,
         log_dir: str,
+        log_percep: bool = True,
+        log_track: bool = False,
     ):
         self.ID = ID
         self.t_start = t_start
+        self.log_dir = log_dir
 
         # add logging hooks
         out_folder = os.path.join(log_dir, f"agent-{ID}", "{}")
-        perception["post_hooks"] = [
-            {
-                "type": "DetectionsLogger",
-                "output_folder": out_folder.format("detections"),
-            }
-        ]
-        tracking["post_hooks"] = [
-            {
-                "type": "StoneSoupTracksLogger",
-                "output_folder": out_folder.format("tracks"),
-            }
-        ]
+        if log_percep:
+            perception["post_hooks"] = [
+                {
+                    "type": "DetectionsLogger",
+                    "output_folder": out_folder.format("detections"),
+                }
+            ]
+        if log_track:
+            tracking["post_hooks"] = [
+                {
+                    "type": "StoneSoupTracksLogger",
+                    "output_folder": out_folder.format("tracks"),
+                }
+            ]
 
         # build models
         self.fov_estimator = MODELS.build(fov_estimator)
@@ -75,6 +81,11 @@ class Agent:
             "change_reference", GlobalOrigin3D, inplace=False
         )
         return tracks_global
+
+    def shutdown(self):
+        # save the stone soup tracks only on shutdown
+        out_folder = os.path.join(self.log_dir, f"agent-{self.ID}", "tracks")
+        StoneSoupTracksLogger(output_folder=out_folder)(self.tracks)
 
 
 @AGENTS.register_module()
@@ -131,15 +142,19 @@ class CommandCenter:
             "tracker": {"type": "StoneSoupKalmanTracker3DBox"},
         },
         log_dir: str = "last_run",
+        log_track: bool = False,
     ):
+        self.log_dir = log_dir
+
         # add logging hooks
-        out_folder = os.path.join(log_dir, f"command-center", "{}")
-        tracking["post_hooks"] = [
-            {
-                "type": "StoneSoupTracksLogger",
-                "output_folder": out_folder.format("tracks"),
-            }
-        ]
+        if log_track:
+            out_folder = os.path.join(log_dir, f"command-center", "{}")
+            tracking["post_hooks"] = [
+                {
+                    "type": "StoneSoupTracksLogger",
+                    "output_folder": out_folder.format("tracks"),
+                }
+            ]
 
         # build models
         tracking["tracker"]["t0"] = t_start
@@ -155,3 +170,8 @@ class CommandCenter:
             timestamp, platform=GlobalOrigin3D, check_reference=False
         )
         return tracks_predicted
+
+    def shutdown(self):
+        # save the stone soup tracks only on shutdown
+        out_folder = os.path.join(self.log_dir, f"command-center", "tracks")
+        StoneSoupTracksLogger(output_folder=out_folder)(self.tracks)
