@@ -15,14 +15,23 @@ class TrustSimulation:
         command_center: ConfigDict,
         trust_estimator: ConfigDict,
         log_dir: str = "last_run",
+        log_trust: bool = True,
     ):
         self.log_dir = log_dir
         if os.path.exists(self.log_dir):
             shutil.rmtree(self.log_dir)
         os.makedirs(self.log_dir, exist_ok=True)
         self.t0 = t0
+
+        # agents
         self.agents = {agent["ID"]: AGENTS.build(agent) for agent in agents}
         self.command_center = AGENTS.build(command_center)
+
+        # trust estimator
+        if log_trust:
+            trust_estimator["post_hooks"] = [
+                {"type": "TrustLogger", "output_folder": os.path.join(log_dir, "trust")}
+            ]
         self.trust_estimator = MATE.build(trust_estimator)
 
     def __call__(self, data):
@@ -64,6 +73,7 @@ class TrustSimulation:
         # run trust estimation
         self.trust_estimator(
             frame=data["frame"],
+            timestamp=data["timestamp"],
             agent_poses=agent_platforms,
             agent_fovs=agent_fovs_global,
             agent_dets=agent_dets_global,

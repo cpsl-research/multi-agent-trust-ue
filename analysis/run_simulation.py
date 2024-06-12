@@ -6,13 +6,14 @@ from datetime import datetime
 
 import avapi  # noqa # pylint: disable=unused-import; to set the registries
 import avstack  # noqa # pylint: disable=unused-import; to set the registries
+import mate  # noqa # pylint: disable=unused-import; to set the registries
 import simulation  # noqa # pylint: disable=unused-import; to set the registries
 from simulation import DatasetReplayer, TrustSimulation
 from tqdm import tqdm
 
 
 def main(args):
-    t_start = datetime.now()
+    t_start = datetime(2000, 1, 1)
     agents = [
         {"type": "MobileAgent", "ID": 0, "t_start": t_start, "log_dir": args.log_dir},
         {"type": "StaticAgent", "ID": 1, "t_start": t_start, "log_dir": args.log_dir},
@@ -38,6 +39,10 @@ def main(args):
             all_results.append(
                 {
                     "frame": data_input["frame"],
+                    "timestamp": data_input["timestamp"],
+                    "timestamp_datetime": (
+                        t_start + data_input["timestamp_dt"]
+                    ).timestamp(),
                     "data": data_output,
                 }
             )
@@ -49,6 +54,18 @@ def main(args):
         print("Saving metadata...")
         with open(os.path.join(args.log_dir, "metadata.json"), "w") as f:
             json.dump(metadata, f)
+
+        # save frame/timestamp information
+        print("Saving frame/timestamps...")
+        with open(os.path.join(args.log_dir, "timestamps.txt"), "w") as f:
+            f.write(
+                "\n".join(
+                    [
+                        f"{res['frame']:d}, {res['timestamp_datetime']:f}"
+                        for res in all_results
+                    ]
+                )
+            )
 
         # run the shutdown routine for the agents
         print("Shutting down agents...")
