@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 from avstack.config import AGENTS, MODELS
+from avstack.datastructs import DataContainer
 from avstack.geometry import GlobalOrigin3D
 from avstack.utils.logging import StoneSoupTracksLogger
 
@@ -172,6 +173,7 @@ class CommandCenter:
         log_track: bool = False,
     ):
         self.log_dir = log_dir
+        self.tracks = None
 
         # add logging hooks
         if log_track:

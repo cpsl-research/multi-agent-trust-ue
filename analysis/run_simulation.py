@@ -3,6 +3,7 @@ import json
 import os
 from argparse import ArgumentParser
 from datetime import datetime
+import numpy as np
 
 import avapi  # noqa # pylint: disable=unused-import; to set the registries
 import avstack  # noqa # pylint: disable=unused-import; to set the registries
@@ -29,8 +30,9 @@ def main(args):
         trust_estimator=trust_estimator,
         log_dir=args.log_dir,
     )
-    replayer = DatasetReplayer(scene_index=args.scene_index)
+    replayer = DatasetReplayer(scene_index=args.scene_index, n_frames_max=args.max_frames)
 
+    running = False
     all_results = []
     try:
         # run through simulator
@@ -46,38 +48,41 @@ def main(args):
                     "data": data_output,
                 }
             )
+            running = True
     except KeyboardInterrupt:
         pass
     finally:
-        # save metadata
-        metadata = {"t_start": t_start.timestamp(), "replayer": replayer.metadata}
-        print("Saving metadata...")
-        with open(os.path.join(args.log_dir, "metadata.json"), "w") as f:
-            json.dump(metadata, f)
+        if running:
+            # save metadata
+            metadata = {"t_start": t_start.timestamp(), "replayer": replayer.metadata}
+            print("Saving metadata...")
+            with open(os.path.join(args.log_dir, "metadata.json"), "w") as f:
+                json.dump(metadata, f)
 
-        # save frame/timestamp information
-        print("Saving frame/timestamps...")
-        with open(os.path.join(args.log_dir, "timestamps.txt"), "w") as f:
-            f.write(
-                "\n".join(
-                    [
-                        f"{res['frame']:d}, {res['timestamp_datetime']:f}"
-                        for res in all_results
-                    ]
+            # save frame/timestamp information
+            print("Saving frame/timestamps...")
+            with open(os.path.join(args.log_dir, "timestamps.txt"), "w") as f:
+                f.write(
+                    "\n".join(
+                        [
+                            f"{res['frame']:d}, {res['timestamp_datetime']:f}"
+                            for res in all_results
+                        ]
+                    )
                 )
-            )
 
-        # run the shutdown routine for the agents
-        print("Shutting down agents...")
-        for agent in [simulator.command_center, *simulator.agents.values()]:
-            agent.shutdown()
-        print("done.")
+            # run the shutdown routine for the agents
+            print("Shutting down agents...")
+            for agent in [simulator.command_center, *simulator.agents.values()]:
+                agent.shutdown()
+            print("done.")
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--scene", dest="scene_index", type=int, default=0)
     parser.add_argument("--log", dest="log_dir", type=str, default="last_run")
+    parser.add_argument("--frames", dest="max_frames", type=int, default=np.inf)
     args = parser.parse_args()
 
     pr = cProfile.Profile()
