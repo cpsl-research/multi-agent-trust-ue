@@ -1,4 +1,7 @@
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from avstack.sensors import LidarData
 
 from avstack.config import MODELS
 from avstack.modules import BaseModule
@@ -20,7 +23,7 @@ class ConcaveHullLidarFOVEstimator(BaseModule):
         self.length_threshold = length_threshold
 
     @apply_hooks
-    def __call__(self, pc, in_global: bool, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, pc: "LidarData", in_global: bool, *args: Any, **kwds: Any) -> Any:
         fov = pc.concave_hull_bev(
             concavity=self.concavity,
             length_threshold=self.length_threshold,

@@ -167,29 +167,38 @@ class CommandCenter:
         t_start: "datetime",
         tracking: "ConfigDict" = {
             "type": "MeasurementBasedMultiTracker",
-            "tracker": {"type": "StoneSoupKalmanTracker3DBox"},
+            "tracker": {"type": "BasicBoxTracker3D"},
+            # "tracker": {"type": "StoneSoupKalmanTracker3DBox"},
         },
         log_dir: str = "last_run",
-        log_track: bool = False,
+        log_track: bool = True,
     ):
         self.log_dir = log_dir
         self.tracks = None
+        self._log_soup = False
 
         # add logging hooks
         if log_track:
             out_folder = os.path.join(log_dir, f"command-center", "{}")
-            tracking["post_hooks"] = [
-                {
-                    "type": "StoneSoupTracksLogger",
-                    "output_folder": out_folder.format("tracks"),
-                }
-            ]
+            if "StoneSoup" not in tracking["tracker"]["type"]:
+                tracking["post_hooks"] = [
+                    {
+                        "type": "TracksLogger",
+                        "output_folder": out_folder.format("tracks"),
+                    }
+                ]
+            else:
+                self._log_soup = True
 
         # build models
         tracking["tracker"]["t0"] = t_start
         self.tracking = MODELS.build(tracking)
 
     def pipeline(self, agent_dets, agent_fovs, agent_platforms):
+        """Run the command center pipeline
+        
+        NOTE: all input data are in global coordinates
+        """
         self.tracks = self.tracking(
             detections=agent_dets, fovs=agent_fovs, platforms=agent_platforms
         )
@@ -202,5 +211,6 @@ class CommandCenter:
 
     def shutdown(self):
         # save the stone soup tracks only on shutdown
-        out_folder = os.path.join(self.log_dir, f"command-center", "tracks")
-        StoneSoupTracksLogger(output_folder=out_folder)(self.tracks)
+        if self._log_soup:
+            out_folder = os.path.join(self.log_dir, f"command-center", "tracks")
+            StoneSoupTracksLogger(output_folder=out_folder)(self.tracks)
