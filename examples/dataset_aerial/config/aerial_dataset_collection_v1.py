@@ -14,8 +14,15 @@ _infra_sensor_suite = [
         "name": "camera-0",
         "reference": {
             "type": "CarlaReferenceFrame",
-            "location": [0, 0, 50],
-            "rotation": [0, 90, 0],
+            "camera": True,
+        },
+        "post_hooks": [_sensor_data_logger],
+    },
+    {
+        "type": "CarlaDepthCamera",
+        "name": "camera-0",
+        "reference": {
+            "type": "CarlaReferenceFrame",
             "camera": True,
         },
         "post_hooks": [_sensor_data_logger],
@@ -31,6 +38,12 @@ actor_manager = {
         {
             "type": "CarlaStaticActor",
             "spawn": "random",
+            "reference_to_spawn": {
+                "type": "CarlaReferenceFrame",
+                "location": [0, 0, 50],
+                "rotation": [0, 90, 0],
+                "camera": False,
+            },
             "sensors": _infra_sensor_suite,
             "pipeline": _empty_pipeline,
         }
